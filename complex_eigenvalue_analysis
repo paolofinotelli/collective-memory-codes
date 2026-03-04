@@ -1,0 +1,58 @@
+This script analyzes the eigenvalues of a system governed by matrix B(\theta\). The focus is on **complex eigenvalues** and their **stability** 
+as **\(\theta\)** changes. Specifically, the code finds the **critical value of \(\theta\)** where one eigenvalue's modulus equals 1, marking a
+transition point. The code computes eigenvalues, checks system stability, and visualizes results, with applications in modeling consensus, memory, 
+and network dynamics.
+
+%Define A, for example:
+
+A = [-0.5, -0.9, 0, 0, 0;
+      0.9, -0.5, 0, 0, 0;
+      0,    0,   0.3,0, 0;
+      0,    0,   0,  0.3,0;
+      0,    0,   0,  0,  0.3];
+
+eig(A);
+
+%Define the initial memory maytrix, for example:
+
+M_0 = [8 5 9;
+        9 8 10;
+        7 5 10;
+        10 9 9;
+        8 8 8];
+
+syms theta t
+
+B=A*theta +(1-theta)*eye(5);
+
+eig(B);
+
+theta = linspace(0, 2, 10000);
+
+lambda1 = 1 - 7*theta/10;
+lambda4 = 1 - theta*(3/2 + 9i/10);
+lambda5 = 1 - theta*(3/2 - 9i/10);
+
+stable = abs(lambda1) < 1 & ...
+         abs(lambda4) < 1 & ...
+         abs(lambda5) < 1;
+
+theta_stable = theta(stable);
+
+[min(theta_stable), max(theta_stable)]   
+
+%Let's consider abs(lambda4) = 1 (modulus of the first eigenvalue), I get
+%theta= 0.9804
+
+syms t 
+B_t = B.^t;
+
+%We then evaluate B_t in theta= 0.9804
+
+% Step 1: Substitute theta = 0.9804 into B
+theta_crit = 0.9804;
+I = eye(5);
+B_num = A * theta_crit + (1 - theta_crit) * I;
+
+% Step 2: Compute B_t_cri = B_num^t symbolically
+B_t_cri = B_num^t;
