@@ -1,58 +1,69 @@
 This script analyzes the eigenvalues of a system governed by matrix B(\theta\). The focus is on **complex eigenvalues** and their **stability** 
 as **\(\theta\)** changes. Specifically, the code finds the **critical value of \(\theta\)** where one eigenvalue's modulus equals 1, marking a
 transition point. The code computes eigenvalues, checks system stability, and visualizes results, with applications in modeling consensus, memory, 
-and network dynamics.
+and network dynamics. Different levels of noise are considered, as well.
 
-%Define A, for example:
 
+%% Parameters
+
+% Define matrix A
 A = [-0.5, -0.9, 0, 0, 0;
       0.9, -0.5, 0, 0, 0;
       0,    0,   0.3,0, 0;
       0,    0,   0,  0.3,0;
       0,    0,   0,  0,  0.3];
 
-eig(A);
+% Define matrix M0 (starting memory matrix)
+M0 = [8 5 9;
+      9 8 10;
+      7 5 10;
+      10 9 9;
+      8 8 8];
 
-%Define the initial memory maytrix, for example:
+theta_crit = 0.9804;  % critical theta from your example
+B = A * theta_crit + (1-theta_crit)*eye(5);
 
-M_0 = [8 5 9;
-        9 8 10;
-        7 5 10;
-        10 9 9;
-        8 8 8];
+T = 50;             % number of time steps
+sigma_list = [0, 0.01, 0.1];  % noise levels: none, small, larger
 
-syms theta t
+%% Preallocate for storage
+num_noise = length(sigma_list);
+memory_trajectories = zeros(5, 3, T+1, num_noise);
 
-B=A*theta +(1-theta)*eye(5);
+for n_idx = 1:num_noise
+    sigma = sigma_list(n_idx);
+    M = M0;
+    memory_trajectories(:,:,1,n_idx) = M;
 
-eig(B);
+    for t = 1:T
+        epsilon = sigma*randn(size(M));    % Gaussian noise
+        M = B*M + epsilon;                 % stochastic update
+        memory_trajectories(:,:,t+1,n_idx) = M;
+    end
+end
 
-theta = linspace(0, 2, 10000);
+%% Plot results for the first two rows (xy-plane rotation)
+figure('Position',[100 100 1200 400]);
 
-lambda1 = 1 - 7*theta/10;
-lambda4 = 1 - theta*(3/2 + 9i/10);
-lambda5 = 1 - theta*(3/2 - 9i/10);
+for n_idx = 1:num_noise
+    subplot(1, num_noise, n_idx);
+    plot(squeeze(memory_trajectories(1,1,:,n_idx)), ...
+         squeeze(memory_trajectories(2,1,:,n_idx)), '-o','LineWidth',1.2);
+    xlabel('Subject 1 X'); ylabel('Subject 1 Y');
+    title(['XY-plane orbit, \sigma = ', num2str(sigma_list(n_idx))]);
+    axis equal; grid on;
+end
 
-stable = abs(lambda1) < 1 & ...
-         abs(lambda4) < 1 & ...
-         abs(lambda5) < 1;
+%% Plot results for bottom three rows (zvw axes)
+figure('Position',[100 100 1200 400]);
+for n_idx = 1:num_noise
+    subplot(1,num_noise,n_idx);
+    plot(0:T, squeeze(memory_trajectories(3,1,:,n_idx)), '-o', ...
+         0:T, squeeze(memory_trajectories(4,1,:,n_idx)), '-s', ...
+         0:T, squeeze(memory_trajectories(5,1,:,n_idx)), '-d','LineWidth',1.2);
+    xlabel('Time'); ylabel('Memory value');
+    title(['ZVW axes, \sigma = ', num2str(sigma_list(n_idx))]);
+    legend('Z','V','W');
+    grid on;
+end
 
-theta_stable = theta(stable);
-
-[min(theta_stable), max(theta_stable)]   
-
-%Let's consider abs(lambda4) = 1 (modulus of the first eigenvalue), I get
-%theta= 0.9804
-
-syms t 
-B_t = B.^t;
-
-%We then evaluate B_t in theta= 0.9804
-
-% Step 1: Substitute theta = 0.9804 into B
-theta_crit = 0.9804;
-I = eye(5);
-B_num = A * theta_crit + (1 - theta_crit) * I;
-
-% Step 2: Compute B_t_cri = B_num^t symbolically
-B_t_cri = B_num^t;
