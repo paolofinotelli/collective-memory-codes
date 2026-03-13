@@ -1,5 +1,5 @@
 This code provides a framework for exploring how collective memory evolves in populations. It can be adapted to various scenarios, 
-including modeling memory distortion, polarization, and social dynamics. A source of noise is considered as well.
+including modeling memory distortion, polarization, and social dynamics. Different levels of noise are considered, as well.
 The code demonstrates two main cases:
 
 1) A small interaction case: where the number of subjects is n=5
@@ -17,7 +17,9 @@ Bsym = [1-theta, 0.3*theta, 0.2*theta, 0.1*theta, 0.4*theta;
         0, 0.2*theta, 0.4*theta, 1-theta, 0.3*theta;
         0.4*theta, 0.2*theta, 0.1*theta, 0.4*theta, 1-theta];
 
-%% Original data
+%% Define original data
+% M_0 is the starting memory matrix
+
 M_0 = [8 5 9;
        9 8 10;
        7 5 10;
