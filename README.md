@@ -5,6 +5,7 @@ This repository contains code for modeling and simulating **collective memory fo
 - Model individual and collective memory with DeGroot consensus processes
 - Simulate memory dynamics using matrix-based update rules
 - Analyze memory convergence, oscillations, and stability
+- Investigate the impact of **stochastic noise** (at different levels) on memory evolution and group consensus
 
 ## Dependencies:
 - MATLAB
