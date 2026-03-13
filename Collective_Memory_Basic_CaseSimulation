@@ -1,0 +1,140 @@
+# Collective Memory Simulation: Basic case
+
+This MATLAB code simulates the evolution of collective memory using a DeGroot-type network model, incorporating stochastic noise to examine 
+convergence and fluctuations in memory dynamics. It visualizes the memory states and the impact of noise on group consensus and fragmentation
+across multiple iterations and noise levels.
+
+## Basic Example
+
+% I set the number of subjects (`n = 5`), questions (`m = 3`), and iterations (`T = 20`).
+% The code generates memory states for various noise levels (`sigma_values = [0, 0.01, 0.05, 0.1, 0.3, 0.5]`).
+% Visualizations include heatmaps of memory states and bar charts showing the standard deviation of memory values across questions.
+
+%This example demonstrates how memory evolves in a small group of subjects with noise introduced at each iteration, simulating collective 
+memory dynamics.
+
+
+%% Parameters
+n = 5;    % number of subjects
+m = 3;    % number of questions
+T = 20;   % number of iterations
+sigma_values = [0, 0.01, 0.05, 0.1, 0.3, 0.5];  % noise levels
+
+%% 1. Initial memory matrix
+M0 = [8 5 9;
+      9 8 10;
+      7 5 10;
+      10 9 9;
+      8 8 8];   % example initial memory
+
+%% 2. Standardize columns
+mean_M0 = mean(M0,1);
+std_M0 = std(M0,0,1);
+M0_std = (M0 - mean_M0) ./ std_M0;
+
+%% 3. Identity B matrix (trivial convergence)
+B = eye(n);
+
+%% 4. Iterate for each sigma
+num_sigmas = length(sigma_values);
+M_star_all = cell(num_sigmas,1);
+
+for s = 1:num_sigmas
+    sigma = sigma_values(s);
+    Mt = M0_std;
+    
+    for t = 1:T
+        epsilon = sigma * randn(size(Mt));  % stochastic perturbation
+        Mt = B * Mt + epsilon;              % update memory
+    end
+    
+    % Convert back to original scale
+    M_star_all{s} = Mt .* std_M0 + mean_M0;
+    fprintf('Sigma = %.2f done\n', sigma);
+end
+
+%% 5. Visualization
+figure('Position',[100 100 1500 400]);
+
+for s = 1:num_sigmas
+    % Heatmap
+    subplot(2,num_sigmas,s);
+    imagesc(M_star_all{s});
+    colormap(parula); colorbar;
+    title(sprintf('M^* (\\sigma=%.2f)', sigma_values(s)));
+    xlabel('Questions'); ylabel('Subjects');
+    
+    % Column stds
+    subplot(2,num_sigmas,s+num_sigmas);
+    col_stds = std(M_star_all{s},0,1);
+    bar(col_stds);
+    title(sprintf('Column std (\\sigma=%.2f)', sigma_values(s)));
+    ylabel('Std dev'); xlabel('Questions');
+    yline(mean(col_stds),'r--','Mean std');
+end
+
+sgtitle('Trivial convergence: M^* = M(0) + stochastic fluctuations');
+
+
+%% Generalization ta larger matrices
+
+%% Parameters
+n = 1000;    % number of subjects (use smaller for visualization)
+m = 20;      % number of questions
+T = 20;      % number of iterations
+sigma_values = [0, 0.01, 0.05, 0.1, 0.3, 0.5];  % noise levels
+
+%% 1. Initial memory matrix
+density_M0 = 0.1;       % 10% non-zero entries
+S = sprand(n, m, density_M0);
+[i,j] = find(S);
+values = 10 * rand(length(i),1);
+M0 = sparse(i,j,values,n,m);
+
+%% 2. Standardize columns
+mean_M0 = mean(M0,1);
+std_M0 = std(M0,0,1);
+M0_std = (M0 - mean_M0) ./ std_M0;
+
+%% 3. Identity B matrix (trivial convergence)
+B = speye(n);
+
+%% 4. Iterate for each sigma
+num_sigmas = length(sigma_values);
+M_star_all = cell(num_sigmas,1);
+
+for s = 1:num_sigmas
+    sigma = sigma_values(s);
+    Mt = M0_std;
+    
+    for t = 1:T
+        epsilon = sigma * randn(size(Mt));  % stochastic perturbation
+        Mt = B * Mt + epsilon;             % update memory
+    end
+    
+    % Convert back to original scale
+    M_star_all{s} = Mt .* std_M0 + mean_M0;
+    fprintf('Sigma = %.2f done\n', sigma);
+end
+
+%% 5. Visualization
+figure('Position',[100 100 1800 600]);
+
+for s = 1:num_sigmas
+    % Heatmap
+    subplot(2,num_sigmas,s);
+    imagesc(M_star_all{s});
+    colormap(parula); colorbar;
+    title(sprintf('M^* (\\sigma=%.2f)', sigma_values(s)));
+    xlabel('Questions'); ylabel('Subjects');
+    
+    % Column stds
+    subplot(2,num_sigmas,s+num_sigmas);
+    col_stds = full(std(M_star_all{s},0,1));
+    bar(col_stds);
+    title(sprintf('Column std (\\sigma=%.2f)', sigma_values(s)));
+    ylabel('Std dev'); xlabel('Questions');
+    yline(mean(col_stds),'r--','Mean std');
+end
+
+sgtitle('Trivial convergence: M^* = M(0) + stochastic fluctuations');
