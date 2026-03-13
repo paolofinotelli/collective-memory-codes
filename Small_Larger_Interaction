@@ -1,5 +1,5 @@
 This code provides a framework for exploring how collective memory evolves in populations. It can be adapted to various scenarios, 
-including modeling memory distortion, polarization, and social dynamics.
+including modeling memory distortion, polarization, and social dynamics. A source of noise is considered as well.
 The code demonstrates two main cases:
 
 1) A small interaction case: where the number of subjects is n=5
@@ -9,159 +9,178 @@ Additionally, there are alternative options provided in the code (commented out)
 
 ##
 
-syms theta t
-
-% Define matrix B(theta)
+%% Symbolic setup
+syms theta
 Bsym = [1-theta, 0.3*theta, 0.2*theta, 0.1*theta, 0.4*theta;
-     0.4*theta, 1-theta, 0.3*theta, 0.2*theta, 0.1*theta;
-     0.2*theta, 0.3*theta, 1-theta, 0.3*theta, 0.2*theta;
-     0, 0.2*theta, 0.4*theta, 1-theta, 0.3*theta;
-     0.4*theta, 0.2*theta, 0.1*theta, 0.4*theta, 1-theta];
+        0.4*theta, 1-theta, 0.3*theta, 0.2*theta, 0.1*theta;
+        0.2*theta, 0.3*theta, 1-theta, 0.3*theta, 0.2*theta;
+        0, 0.2*theta, 0.4*theta, 1-theta, 0.3*theta;
+        0.4*theta, 0.2*theta, 0.1*theta, 0.4*theta, 1-theta];
 
-% Display the matrix B
-disp('Matrix Bsym(theta):');
-disp(Bsym);
-
-
-eig(Bsym);
-
-% Define theta
-theta = 0.6;
-B = double(subs(Bsym, theta, 0.6));
-
-% Calculate each eigenvalue
-eigenvalue1 = 1;
-
-eigenvalue2 = 1 - (sqrt(3) * theta / 10) - (6 * theta / 5);
-eigenvalue3 = (sqrt(3) * theta / 10) - (6 * theta / 5) + 1;
-
-eigenvalue4 = 1 - (sqrt(7) * theta / 10) - (13 * theta / 10);
-eigenvalue5 = (sqrt(7) * theta / 10) - (13 * theta / 10) + 1;
-
-% For example, let's evaluate the eigenvalues for theta=0.6;
-
-theta=0.6;
-
-% Display the results
-disp('Eigenvalue 1:');
-disp(eigenvalue1);
-
-disp('Eigenvalue 2:');
-disp(eigenvalue2);
-
-disp('Eigenvalue 3:');
-disp(eigenvalue3);
-
-disp('Eigenvalue 4:');
-disp(eigenvalue4);
-
-disp('Eigenvalue 5:');
-disp(eigenvalue5);
-
-B;
-
-% Define matrix M(0)
-
+%% Original data
 M_0 = [8 5 9;
-        9 8 10;
-        7 5 10;
-        10 9 9;
-        8 8 8];
+       9 8 10;
+       7 5 10;
+       10 9 9;
+       8 8 8];
 
-mean_M_0 = mean(M_0);         % Row vector of means of each column
-std_M_0 = std(M_0);           % Row vector of standard deviations of each column
+mean_M_0 = mean(M_0);  % column-wise mean
+std_M_0 = std(M_0);    % column-wise std
 
-% Standardize the columns of M_0
-M_0_standardized = (M_0 - mean_M_0) ./ std_M_0;
+% Standardize
+M_standardized = (M_0 - mean_M_0) ./ std_M_0;
 
-% Display the standardized matrix
-disp(M_0_standardized);
-% Perform matrix multiplication B_t * M(0)
-M_result = C* M_0_standardized;
+%% Parameters
+theta_val = 0.6;
+T = 20;  % longer simulation to show convergence behavior
+sigma_values = [0, 0.01, 0.05, 0.1, 0.3, 0.5];  % include larger noise
 
-   %Undo standardization to get scores
+% Evaluate B(theta)
+B = double(subs(Bsym, theta, theta_val));
 
-   M_scores = M_result .* std_M_0 + mean_M_0;
+%% Storage for plotting
+num_sigmas = length(sigma_values);
+M_final_all = zeros(size(M_0,1), size(M_0,2), num_sigmas);
 
+%% Iterate over noise levels
+for s = 1:num_sigmas
+    sigma = sigma_values(s);
+    M_t = M_standardized;
+    
+    for t = 1:T
+        epsilon = sigma * randn(size(M_t));  % Gaussian noise
+        M_t = B * M_t + epsilon;
+    end
+    
+    % Undo standardization
+    M_scores = M_t .* std_M_0 + mean_M_0;
+    M_final_all(:,:,s) = M_scores;
+    
+    fprintf('Sigma = %.2f\n', sigma);
+    disp(M_scores);
+end
 
- %% Generalization to larger matrices
-
-n = 1e5; density = 5/n;
-A = sprand(n, n, density);  
-row_sums = sum(A, 2);
-A = spdiags(1 ./ full(row_sums), 0, n, n) * A;  % ← ADD THIS
-I = speye(n); theta = 0.6;
-B = theta*A + (1-theta)*I;  % Now ρ(B) ≤ 1 guaranteed!
-    %To impose the convergence condition ρ(B)≤1 ρ(B)≤1 (spectral radius, ensuring 
-    % B t approaches 0), use these efficient methods for your sparse 100k×100k B
-
-% n = 1e5; m = 20;
-% M0 = sprandn(n, m, 0.1);  % Your 60M×20 initial scores
-% norms = [];
-% for t = 1:100
-%     M_next = B * M0;
-%     norms(t) = norm(M_next - M0, 'fro');
-%     if norms(t) < 1e-6, break; end
-%     M0 = M_next;
+% %% Optional: plot evolution for first column to visualize convergence
+% figure;
+% hold on;
+% colors = lines(num_sigmas);
+% for s = 1:num_sigmas
+%     M_t = M_standardized(:,1);  % first column
+%     column_evolution = zeros(size(M_t,1), T);
+%     for t = 1:T
+%         epsilon = sigma_values(s) * randn(size(M_t));
+%         M_t = B(:,1) * M_t + epsilon;  % approximate first column evolution
+%         column_evolution(:,t) = M_t;
+%     end
+%     plot(1:T, column_evolution', 'Color', colors(s,:), 'LineWidth', 1.5);
 % end
-% semilogy(norms); title('M(t) → M^* (non-trivial!)');
-% M_star = M0;  % Your converged matrix!
-% 
-% % Full M_star (transpose for better aspect ratio)
-% imagesc(M_star');  
-% colormap(hot);     % or 'jet', 'parula', 'viridis'
-% colorbar;          
-% title('Converged Memory Matrix M^*');
-% xlabel('Subjects'); ylabel('Questions');
+% xlabel('Time step');
+% ylabel('Value (standardized)');
+% legend(arrayfun(@(x) sprintf('\\sigma=%.2f', x), sigma_values, 'UniformOutput', false));
+% title('Effect of noise on evolution of the first column');
+% grid on;
+% hold off;
 
-n = 1e5; m = 20;
-density = 0.1;
 
-% 1. Generate sparse M0 with [0,10] scores
-S = sprand(n, m, density);  
+%% Effect of noise on the first column: Plot evolution for the first column to visualize convergence
+figure;
+hold on;
+colors = lines(num_sigmas);
+
+for s = 1:num_sigmas
+    sigma = sigma_values(s);
+    M_t = M_standardized;  % full 5x3 matrix
+    column_evolution = zeros(size(M_t,1), T);  % store first column only
+    
+    for t = 1:T
+        epsilon = sigma * randn(size(M_t));  % noise for full matrix
+        M_t = B * M_t + epsilon;             % full matrix multiplication
+        column_evolution(:, t) = M_t(:,1);  % save first column
+    end
+    
+    plot(1:T, column_evolution', 'Color', colors(s,:), 'LineWidth', 1.5);
+end
+
+xlabel('Time step');
+ylabel('Value (standardized)');
+legend(arrayfun(@(x) sprintf('\\sigma=%.2f', x), sigma_values, 'UniformOutput', false));
+title('Effect of noise on evolution of the first column');
+grid on;
+hold off;
+
+
+ 
+%%% GENERALIZATION TO LARGER MATRICES %%%
+
+%% Parameters
+n = 1e5;       % number of subjects
+m = 20;        % number of questions
+density_B = 5/n;  % density for sparse B
+theta = 0.6;      % weighting parameter
+T = 100;          % max iterations
+tol = 1e-6;       % convergence tolerance
+sigma_values = [0, 0.01, 0.05, 0.1, 0.3, 0.5];  % noise levels
+
+%% 1. Build sparse stochastic B matrix
+A = sprand(n, n, density_B);          % sparse random adjacency
+row_sums = sum(A, 2);
+A = spdiags(1 ./ full(row_sums), 0, n, n) * A;  % normalize rows
+I = speye(n);
+B = theta * A + (1-theta) * I;        % ensures spectral radius <= 1
+
+%% 2. Generate initial sparse memory matrix M0
+density_M0 = 0.1;  % 10% nonzero entries
+S = sprand(n, m, density_M0);  
 [i,j] = find(S);
 values = 10 * rand(length(i), 1);  % Uniform [0,10]
 M0 = sparse(i, j, values, n, m);
 
-% 2. Standardize COLUMNS (your original method works perfectly!)
+%% 3. Standardize columns
 mean_M0 = mean(M0, 1);           % 1x20 column means  
-std_M0 = std(M0, 0, 1);          % 1x20 column stds (sample std)
-M0_std = (M0 - mean_M0) ./ std_M0;  % Sparse stays sparse! ✓
+std_M0 = std(M0, 0, 1);          % 1x20 column stds
+M0_std = (M0 - mean_M0) ./ std_M0;
 
+%% 4. Iterate for each sigma value
+num_sigmas = length(sigma_values);
+M_star_all = cell(num_sigmas,1);
 
-% 3. Iterate to M_star (in standardized space)
-Mt = M0_std;
-for t = 1:100
-    Mt_next = B * Mt;
-    if norm(Mt_next - Mt, 'fro') < 1e-6, break; end
-    Mt = Mt_next;
+for s = 1:num_sigmas
+    sigma = sigma_values(s);
+    Mt = M0_std;
+    
+    for t = 1:T
+        epsilon = sigma * randn(size(Mt));  % Gaussian noise
+        Mt_next = B * Mt + epsilon;         % update memory with noise
+        if norm(Mt_next - Mt, 'fro') < tol
+            break;
+        end
+        Mt = Mt_next;
+    end
+    
+    % Store final matrix in original score scale
+    M_star_all{s} = Mt .* std_M0 + mean_M0;
+    fprintf('Sigma = %.2f, iterations = %d\n', sigma, t);
 end
-M_star_std = Mt;
 
-% 4. Back to original scores for interpretation
-M_star_scores = M_star_std .* std_M0 + mean_M0;
+%% 5. Visualize results (first 2000 subjects)
+figure('Position', [100 100 1500 600]);
 
-imagesc(M_star_scores');  
-colormap(hot);     % or 'jet', 'parula', 'viridis'
-colorbar;          
-title('Converged Memory Matrix M^*');
-xlabel('Subjects'); ylabel('Questions');
+for s = 1:num_sigmas
+    % Heatmap
+    subplot(2, num_sigmas, s);
+    imagesc(M_star_all{s}(1:2000, :));
+    colormap(parula); colorbar;
+    title(sprintf('M^* (\\sigma=%.2f)', sigma_values(s)));
+    xlabel('Questions'); ylabel('Subjects');
+    
+    % Column stds
+    subplot(2, num_sigmas, s+num_sigmas);
+    col_stds = full(std(M_star_all{s}, 0, 1));
+    bar(col_stds); 
+    title(sprintf('Column std (\\sigma=%.2f)', sigma_values(s)));
+    ylabel('Std dev'); xlabel('Questions');
+    yline(mean(col_stds), 'r--', 'Mean std');
+end
 
-% figure('Position', [100 100 1200 400]);
-% subplot(121);
-% imagesc(M_star_scores(1:2000, :)');  % First 2k subjects
-% colormap(parula); colorbar; title('M^*_{scores} heatmap');
-% xlabel('Subject'); ylabel('Question');
-
-figure('Position', [100 100 1200 400]);
-subplot(121);
-imagesc(M_star_scores(1:2000, :));  % First 2k subjects
-colormap(parula); colorbar; title('M^*_{scores} heatmap');
-xlabel('Question'); ylabel('Subject');
-
-subplot(122);
-col_stds = full(std(M_star_scores, 0, 1));  % Column stds
-bar(col_stds); title('Column std(M^*_{scores}(:,j))'); 
-ylabel('Std dev'); xlabel('Question');
-yline(mean(col_stds), 'r--', 'Mean std');
+sgtitle('Effect of noise on convergence of large sparse memory matrix');
 
